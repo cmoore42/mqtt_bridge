@@ -6,10 +6,15 @@
 #include <stdarg.h>
 #include <mosquitto.h>
 #include <sys/select.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <termios.h>
 #include "mqtt_bridge.h"
 
 #define MAX_NODE 254
 #define DEF_PORT "/dev/ttyUSB0"
+#define DEF_RATE B57600
 
 char line_buf[2048];
 char *line_buf_p;
@@ -34,6 +39,7 @@ main(int argc, char *argv[])
 	char *port_name = NULL;
 	int foreground_flag = 0;
 	int opt;
+	struct termios oldtio, newtio;
 
 	while ((opt = getopt(argc, argv, "fdp:")) != -1) {
 		switch (opt) {
@@ -73,6 +79,14 @@ main(int argc, char *argv[])
 	}
 
 	debug("Port open\n");
+
+	tcgetattr(port, &oldtio);
+	bzero(&newtio, sizeof(newtio));
+
+	newtio.c_cflag = DEF_RATE | CLOCAL | CREAD;
+
+	tcflush(port, TCIFLUSH);
+	tcsetattr(port, TCSANOW, &newtio);
 
 	line_buf[0] = '\0';
 	line_buf_p = &(line_buf[0]);
