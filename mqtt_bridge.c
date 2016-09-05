@@ -132,6 +132,7 @@ void assemble_line(char *buf, int len)
 	unprocessed = buf;
 
 	while (*unprocessed != 0) {
+		char *last;
 		newline = strchr(unprocessed, '\n');
 
 		if (newline == NULL) {
@@ -141,6 +142,11 @@ void assemble_line(char *buf, int len)
 		}
 
 		*newline = '\0';
+		/* Check for \r */
+		last = &(unprocessed[strlen(unprocessed)-1]);
+		if (*last == '\r') {
+			*last = '\0';
+		}
 		strcat(line_buf, unprocessed);
 		process(line_buf);
 		line_buf[0] = '\0';
@@ -162,14 +168,29 @@ void process(char *line)
 	debug("Line: %s\n", line);
 
 	token = strtok(line, ";");
+	if (token == NULL) {
+		return;
+	}
 	node = strtol(token, NULL, 10);
 	token = strtok(NULL, ";");
+	if (token == NULL) {
+		return;
+	}
 	sensor = strtol(token, NULL, 10);
 	token = strtok(NULL, ";");
+	if (token == NULL) {
+		return;
+	}
 	type = strtol(token, NULL, 10);
 	token = strtok(NULL, ";");
+	if (token == NULL) {
+		return;
+	}
 	sub_type = strtol(token, NULL, 10);
 	payload = strtok(NULL, ";");
+	if (token == NULL) {
+		return;
+	}
 
 	if (node <= MAX_NODE) {
 		if (nodes[node] == 0) {
