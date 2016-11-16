@@ -24,11 +24,14 @@ void process(char *);
 void send(int node, int sensor, int type, int sub_type, char *payload);
 void debug(const char *, ...);
 int find_free_node();
+int throttled();
 
 int port;
 int nodes[MAX_NODE];
 struct mosquitto *mosq;
 int debug_flag = 0;
+int throttle = 0;
+time_t last_publish = 0;
 
 main(int argc, char *argv[])
 {
@@ -41,7 +44,7 @@ main(int argc, char *argv[])
 	int opt;
 	struct termios oldtio, newtio;
 
-	while ((opt = getopt(argc, argv, "fdp:")) != -1) {
+	while ((opt = getopt(argc, argv, "fdp:t:")) != -1) {
 		switch (opt) {
 		case 'f':
 			foreground_flag = 1;
@@ -54,8 +57,15 @@ main(int argc, char *argv[])
 		case 'p':
 			port_name = optarg;
 			break;
+		case 't':
+			throttle = atoi(optarg);
+			break;
 		default:
-			fprintf(stderr, "Usage: %s [-f] [-d] [-p <port>]\n", argv[0]);
+			fprintf(stderr, "Usage: %s [-f] [-d] [-t <throttle>] [-p <port>]\n", argv[0]);
+			fprintf(stderr, "  -f: run in the foreground.  Default behavior is to run as a daemon.\n");
+			fprintf(stderr, "  -d: enable debugging.  Implies -f\n");
+			fprintf(stderr, "  -t: minimum number of seconds between MQTT publishes\n");
+			fprintf(stderr, "  -p: specify serial port.  Devault is %s\n", DEF_PORT);
 			exit(EXIT_FAILURE);
 			break;
 		}
@@ -222,14 +232,18 @@ void process(char *line)
 		
 		sprintf(topic, "mqtt/%d/%d/%s", node, sensor, 
 			data_subtype_names[sub_type]);
-		debug("Publishing topic '%s' message '%s'\n", topic, payload);
-		rc = mosquitto_publish(mosq, NULL, topic, strlen(payload),
-		payload, 1, true);
-                if (rc  != MOSQ_ERR_SUCCESS) {
-                        perror("publish");
-                        fprintf(stderr, "publish failed, returned %d\n", rc);
-                        mosquitto_reconnect(mosq);
-                }
+		if (!throttled()) {
+			debug("Publishing topic '%s' message '%s'\n", topic, payload);
+			rc = mosquitto_publish(mosq, NULL, topic, strlen(payload), payload, 1, true);
+                	if (rc  != MOSQ_ERR_SUCCESS) {
+                        	perror("publish");
+                        	fprintf(stderr, "publish failed, returned %d\n", rc);
+                        	mosquitto_reconnect(mosq);
+                	}
+			last_publish = time(NULL);
+		} else {
+			debug("Throttle time not reached, holding\n");
+		}
 		}
 		break;
 	case C_INTERNAL: // Internal
@@ -302,3 +316,23 @@ void debug(const char *fmt, ...)
 		va_end(ap);
 	}
 }
+
+/**
+ * Return zero if it's OK to publish a topic, non-zero if the
+ * throttle time has not been reached.
+ */
+int throttled()
+{
+	time_t now;
+
+	now = time(NULL);
+
+	debug("now: %ld;  last_publish: %ld;  throttle: %d\n", now, last_publish, throttle);
+
+	if (now > (last_publish + throttle)) {
+		return 0;
+	} else {
+		return 1;
+	}
+}
+
