@@ -1,0 +1,3 @@
+# Options to pass to mqtt_bridge
+# systemd assume that it will not fork, so either -d or -f should be used
+MQTT_BRIDGE_OPTS="-f -t 10"

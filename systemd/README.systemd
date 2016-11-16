@@ -1,0 +1,6 @@
+To setup systemd:
+ - copy mqtt_bridge.service to /etc/systemd/system
+ - copy mqtt_bridge to /etc/default
+ - systemctl daemon-reload
+ - systemctl enable mqtt_bridge.service
+ - systemctl start mqtt_bridge.service

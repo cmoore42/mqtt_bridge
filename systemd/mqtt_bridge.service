@@ -1,0 +1,11 @@
+[Unit]
+Description=MQTT Bridge
+After=network.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/default/mqtt_bridge
+ExecStart=/usr/local/bin/mqtt_bridge $MQTT_BRIDGE_OPTS
+
+[Install]
+WantedBy=multi-user.target
