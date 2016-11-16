@@ -61,24 +61,24 @@ main(int argc, char *argv[])
 		}
 	}
 
-	if (!foreground_flag) {
-		daemon(0, 0);
-	}
-
 	debug("Starting\n");
 
-	if (port_name) {
-		port = open(port_name, O_RDWR);
-	} else {
-		port = open(DEF_PORT, O_RDWR);
+	if (port_name == NULL) {
+		port_name = DEF_PORT;
 	}
+	port = open(port_name, O_RDWR);
 
 	if (port < 0) {
 		perror("open");
+		fprintf(stderr, "Can't open port %s\n", port_name); 
 		exit(EXIT_FAILURE);
 	}
 
 	debug("Port open\n");
+
+	if (!foreground_flag) {
+		daemon(0, 0);
+	}
 
 	tcgetattr(port, &oldtio);
 	bzero(&newtio, sizeof(newtio));
